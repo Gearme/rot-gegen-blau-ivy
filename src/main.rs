@@ -1,6 +1,7 @@
 use axum::{
-    routing::{get, post},
+    extract::Query,
     http::StatusCode,
+    routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,8 @@ async fn main() {
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
-        .route("/ping",get(ping))
+        .route("/ping", get(ping))
+        .route("/move", get(execute_move))
         // `POST /users` goes to `create_user`
         .route("/users", post(create_user));
 
@@ -25,11 +27,49 @@ async fn main() {
 
 // basic handler that responds with a static string
 async fn root() -> &'static str {
-    "Hello, World!"
+    ""
 }
 
 async fn ping() -> &'static str {
     "pong"
+}
+
+fn string_move(field: &str) {}
+
+async fn execute_move(state: Query<InputField>) -> (StatusCode, Json<FieldState>) {
+    let len = state.field.chars().filter(|c| *c == 'o').count();
+    let first_free_field_idx = state.field.find('o').expect("no more free fields!");
+    let mut new_field = state.field.clone();
+    let my_colour = if first_free_field_idx == 0 {
+        'B'
+    } else {
+        let lastchar = state.field.chars().nth(first_free_field_idx - 1).unwrap();
+        match state.field.chars().nth(first_free_field_idx - 1).unwrap() {
+            'R' => 'B',
+            'B' => 'R',
+            _ => 'B',
+        }
+    };
+    let _rest = new_field.split_off(first_free_field_idx);
+    let my_move = match len.rem_euclid(3) {
+        1 => 1,
+        2 => 2,
+        _ => 1,
+    };
+    for i in 0..my_move {
+        new_field.push(my_colour);
+    }
+    for i in 0..len - my_move {
+        new_field.push('o');
+    }
+
+    (
+        StatusCode::OK,
+        Json(FieldState {
+            field: new_field,
+            state: "".to_string(),
+        }),
+    )
 }
 
 async fn create_user(
@@ -59,4 +99,15 @@ struct CreateUser {
 struct User {
     id: u64,
     username: String,
+}
+
+#[derive(Deserialize)]
+struct InputField {
+    field: String,
+}
+
+#[derive(Serialize)]
+struct FieldState {
+    field: String,
+    state: String,
 }

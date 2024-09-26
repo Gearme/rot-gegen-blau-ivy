@@ -1,0 +1,1 @@
+docker run -it --rm --name rgb-ivy-run rgb-ivy
